@@ -1,3 +1,6 @@
+#mbs specfic git ignore list
+config.yml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
