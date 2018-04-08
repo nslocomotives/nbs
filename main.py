@@ -1,7 +1,8 @@
 import get_config
 import get_statement
+import database
 
 cfg = get_config.cfg
 
-
-get_statement.statement(cfg['statement']['statementDir'])
+data = get_statement.statement(cfg['statement']['statementDir'])
+database.insertTransaction(data)
