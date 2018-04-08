@@ -2,7 +2,7 @@ import glob
 import re
 import csv
 
-from datetime import tzinfo, timedelta, datetime
+from datetime import datetime
 
 def extract_basename(path):
   # Extracts basename of a given path. Should Work with any OS Path on any OS
