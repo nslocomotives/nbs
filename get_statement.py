@@ -2,8 +2,6 @@ import glob
 import re
 import csv
 
-statementDir="D:\\banking\\statement\\"
-
 def extract_basename(path):
   # Extracts basename of a given path. Should Work with any OS Path on any OS
   basename = re.search(r'[^\\/]+(?=[\\/]?$)', path)
@@ -36,14 +34,14 @@ def identify_file(p, f):
       Flag = 'UNKNOWN'
   return(Flag, date, a)
 
+def statement(statementDir):
+  # ===Start of Program ===#
 
-# ===Start of Program ===#
+  # find all csv files and list them
+  csvFilesStr = statementDir + "*.csv"
+  csvFiles = glob.glob(csvFilesStr)
 
-# find all csv files and list them
-csvFilesStr = statementDir + "*.csv"
-csvFiles = glob.glob(csvFilesStr)
-
-for p in csvFiles:
+  for p in csvFiles:
     print(p)
     f = extract_basename(p)
     (Flag, date, accountNumber) = identify_file(p, f)
