@@ -1,0 +1,29 @@
+statement:
+    statementDir: C:\tmp\statement
+
+mysql:
+    host: localhost
+    user: user
+    password: password
+    database: nbs
+    
+binance:
+    key: key
+    secret: secret
+    tradedSymbols:
+        - BNBETH
+        - BRDETH
+        - CLOAKETH
+        - DGDETH
+        - EOSETH
+        - FUNETH
+        - ICXETH
+        - KNCETH
+        - NCASHETH
+        - NEOETH
+        - ONTETH
+        - POEETH
+        - STEEMETH
+        - STORMETH
+        - TRXETH
+        - WABIETH
