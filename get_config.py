@@ -1,4 +1,7 @@
 import yaml
+import os
 
-with open("config.yml", 'r') as ymlfile:
+workingDir = os.path.os.path.dirname( __file__ )
+
+with open(workingDir + "/config.yml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile)
