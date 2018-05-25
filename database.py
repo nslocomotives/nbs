@@ -157,3 +157,16 @@ def getBal(accountnumber, date):
     cnx.close()
   return (result)
 
+def getAssetVal(asset):
+  # a function to get the value of an asset out of the database
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT value from assets where name=%s"
+          # get the data
+          cursor.executemany(select_sql, [(asset)])
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
