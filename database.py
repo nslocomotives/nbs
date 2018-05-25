@@ -80,7 +80,7 @@ def getCategory(isIncome):
   return (result)
 
 def getSubCategory(lnk):
-  # a function to get the catagories
+  # a function to get the catagories by category link
   cnx = pymysql.connect(**dbConfig)
   try:
       with cnx.cursor() as cursor:
@@ -91,3 +91,69 @@ def getSubCategory(lnk):
   finally:
     cnx.close()
   return (result)
+
+def getSubCategoryById(lnk):
+  # a function to get the sub catagory by ID to return the name.
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT name from subCategory where id=%s"
+          # get the data
+          cursor.executemany(select_sql,[(lnk)])
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
+def getAccounts():
+  # a function to get the accounts in the database
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT * from accounts"
+          # get the data
+          cursor.execute(select_sql)
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
+def getTransactionDataByAccount(accountnumber, startDate, endDate):
+  # a function to get transactions based on account number
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT * from transaction where accountnumber=%s AND date BETWEEN %s AND %s"
+          # get the data
+          cursor.executemany(select_sql, [(accountnumber, startDate, endDate)])
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
+def getTransactionData():
+  # a function to get all transactions
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT * from transaction"
+          # get the data
+          cursor.execute(select_sql)
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
+def getBal(accountnumber, date):
+  # a function to get opening and closing balance based on account number and month
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT date, ballance from transaction where accountnumber=%s AND date < %s LIMIT 1"
+          # get the data
+          cursor.executemany(select_sql, [(accountnumber, date)])
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
