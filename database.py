@@ -159,6 +159,7 @@ def getBal(accountnumber, date):
 
 def getAssets(date):
   # a function to get the list of assets we care about for a given month.
+  # given the date, we will list the most recent value inserted for asset by name, and also filter out an asset sold before the given date.
   cnx = pymysql.connect(**dbConfig)
   try:
       with cnx.cursor() as cursor:
