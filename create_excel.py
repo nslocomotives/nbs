@@ -1,20 +1,23 @@
 from openpyxl import Workbook
 from openpyxl.styles import Font, Fill
 import database
+import datetime
 
 wb = Workbook()
 
-months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+months = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04','May':'05', 'Jun':'06', 'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'}
 incomeCats=database.getCategory(1)
+expensesCats=database.getCategory(0)
 subcat={}
-
 for i in incomeCats:
     subcat[i['name']]=database.getSubCategory(i['id'])
-for i in incomeCats:
-    print(i['name'])
-    for j in subcat[i['name']]:
-        print(j['name'])
-        
+for e in expensesCats:
+    subcat[e['name']]=database.getSubCategory(e['id'])
+
+# Get all the account names and the releveant info to get the data.
+accounts=database.getAccounts()
+
+
 houseExpenses=['Lodging Rent',
                'Lodging',
                'Lodging Tax (council)',
@@ -44,38 +47,12 @@ personalExpenses=['Shopping',
                   'Bank Charges',
                   'Debt repayment',
                   'Other Expenses']
-earnedIncome=['wages',
-              'DJ Income',
-              'Ebay Sales',
-              'Loan Capitol',
-              'Loan repayment Refund',
-              'Other']
-pasiveIncome=['Lodging Income',
-              'Buisness',
-              'Passive Other']
-portfolioIncome=['Interest',
-                 'Crypto Withdrawal',
-                 'Dividends',
-                 'Royalties']
 expenses=houseExpenses+djExpenses+personalExpenses
-income=earnedIncome+pasiveIncome+portfolioIncome
 
 # grab the active worksheet and create other worksheets and give them names
 wsO = wb.active
 wsO.title = "Overview"
 wsB = wb.create_sheet("Budget")
-wsJan = wb.create_sheet("Jan")
-wsFeb = wb.create_sheet("Feb")
-wsMar = wb.create_sheet("Mar")
-wsApr = wb.create_sheet("Apr")
-wsMay = wb.create_sheet("May")
-wsJun = wb.create_sheet("Jun")
-wsJul = wb.create_sheet("Jul")
-wsAug = wb.create_sheet("Aug")
-wsSep = wb.create_sheet("Sep")
-wsOct = wb.create_sheet("Oct")
-wsNov = wb.create_sheet("Nov")
-wsDec = wb.create_sheet("Dec")
 
 #set starting rows
 wsOrow = 2
@@ -89,17 +66,19 @@ wsBHrow = wsBrow
 wsBrowExp = wsBrow + 1
 wsBrowInc = wsBrow + 1
 #create the budget rows
-for e in expenses:
-    wsB['A' + str(wsBrowExp)] = e
-    wsBrowExp = wsBrowExp + 1
-for i in income:
-    wsB['E' + str(wsBrowInc)] = i
-    wsBrowInc = wsBrowInc + 1
+for e in expensesCats:
+    for f in subcat[e['name']]:
+        wsB['A' + str(wsBrowExp)] = f['name']
+        wsBrowExp = wsBrowExp + 1
+for i in incomeCats:
+    for j in subcat[i['name']]: 
+        wsB['E' + str(wsBrowInc)] = j['name']
+        wsBrowInc = wsBrowInc + 1
 #create the budget totals
-wsB['A' + str(wsBrowExp)] = 'TotalExpenses'
+wsB['A' + str(wsBrowExp)] = 'Total Expenses'
 wsB['B' + str(wsBrowExp)] = '=SUM(B' + str(wsBHrow + 1) + ':B' + str(wsBrowExp - 1) +')'
 BExpTotal = 'B' + str(wsBrowExp)
-wsB['E' + str(wsBrowInc)] = 'TotalIncome'
+wsB['E' + str(wsBrowInc)] = 'Total Income'
 wsB['F' + str(wsBrowInc)] = '=SUM(F' + str(wsBHrow + 1) + ':F' + str(wsBrowInc - 1) +')'
 BIncTotal = 'F' + str(wsBrowInc)
 
@@ -108,16 +87,74 @@ BIncTotal = 'F' + str(wsBrowInc)
 
 #create the month.
 def create_month(ws):
-    wsMrowInc = wsMrow
-    wsMrowAna = wsMrow
-    column = 'A'
+    mmm = ws
+    ws = wb.create_sheet(ws)
+    wsMrowInc = wsMrow #starting row for Income Column
+    wsMrowAna = wsMrow #starting row for Analysis Column
+    wsMrowData = wsMrow #starting row for Bank Data
+    column = 'A' #Starting column for Income and Analysis 
+    columnData = 'I' #starting column for Bank Data
     IncTotal ={}
+    ExpTotal ={}
+    AccColumns = {}
+    Balanace = {}
+    now = datetime.datetime.now() 
 
+    #### PRODUCE DATA TABLES FROM BANK DATA ####
+    #DEBUG print(accounts)
+    for a in accounts:
+        #get transaction data
+        #DEBUG (mmm)
+        month = months[mmm]
+        startDate = str(now.year) + '-' + str(month) + '-01'
+        endDate = str(now.year) + '-' + str(month) + '-31'
+        #set opening and closing balances
+        Balanace[m][a['accountname']]['open'] = database.getBal(a['accountnumber'], startDate)
+        #DEBUG print(startDate)
+        #DEBUG print(endDate)
+        transactions=database.getTransactionDataByAccount(a['accountnumber'], startDate, endDate)
+        #write title of account
+        ws[columnData + str(wsMrowData)] = a['accountname']
+        ws[columnData + str(wsMrowData)].font = Font(bold=True)
+        ws.merge_cells(columnData + str(wsMrowData) + ':' + chr(ord(columnData)+2) + str(wsMrowData))
+        wsMrowData = wsMrowData + 1
+        #set the columns to add to the totals columns
+        AccColumns[a['accountname']] = {}
+        AccColumns[a['accountname']]['Date'] = columnData
+        AccColumns[a['accountname']]['Description'] = chr(ord(columnData)+1)
+        AccColumns[a['accountname']]['Category'] = chr(ord(columnData)+2)
+        AccColumns[a['accountname']]['Outgoings'] = chr(ord(columnData)+3)
+        AccColumns[a['accountname']]['Income'] = chr(ord(columnData)+4)
+        #DEBUG print (AccColumns)
+        ws[columnData + str(wsMrowData)] = 'Date'
+        ws[AccColumns[a['accountname']]['Date'] + str(wsMrowData)] = 'Details'
+        ws[AccColumns[a['accountname']]['Category'] + str(wsMrowData)] = 'Category'
+        ws[AccColumns[a['accountname']]['Outgoings'] + str(wsMrowData)] = 'Outgoings'
+        ws[AccColumns[a['accountname']]['Income'] + str(wsMrowData)] = 'Income'
+        wsMrowData = wsMrowData + 1
+        for t in transactions:
+            ws[AccColumns[a['accountname']]['Date'] + str(wsMrowData)] = t['date']
+            ws[AccColumns[a['accountname']]['Description'] + str(wsMrowData)] = t['description']
+            if t['subcategory_lnk']:
+                subCatLnk = database.getSubCategoryById(t['subcategory_lnk'])
+                #DEBUG print(subCatLnk[0]['name'])
+                ws[AccColumns[a['accountname']]['Category'] + str(wsMrowData)] = subCatLnk[0]['name']
+            if t['amount'] > 0:
+                ws[AccColumns[a['accountname']]['Income'] + str(wsMrowData)] = abs(t['amount'])
+            else:
+                ws[AccColumns[a['accountname']]['Outgoings'] + str(wsMrowData)] = abs(t['amount'])
+            wsMrowData = wsMrowData + 1
+        #set next start column for the next Account details
+        columnData = chr(ord(columnData)+6)
+        #reset the row counter
+        wsMrowData = wsMrow
+
+    
+    #### PRODUCE TOTALS COLUMNS ####
     #income column
     # header
     ws[column + str(wsMrowInc)] = 'Income'
     ws[column + str(wsMrowInc)].font = Font(bold=True)
-    print(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
     ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
     wsMrowInc = wsMrowInc + 1
     #income section
@@ -127,8 +164,22 @@ def create_month(ws):
       wsMHrowInc = wsMrowInc
       wsMrowInc = wsMrowInc + 1
       ##income catagories
+      #print(subcat[i['name']])
       for j in subcat[i['name']]:
         ws[chr(ord(column)+1) + str(wsMrowInc)] = j['name']
+        catSum = '=SUM('
+        #DEBUG print(AccColumns)
+        for k, v in AccColumns.items():
+            #DEBUG print(v)
+            catC = v['Category']
+            incC = v['Income']
+            outC = v['Outgoings']
+            comC = chr(ord(column)+1) + str(wsMrowInc)
+            catSum = catSum + 'SUMIF($' + catC + ':$' + catC + ',' + comC + ',$' + incC + ':$' + incC + '),'
+            catSum = catSum + 'SUMIF($' + catC + ':$' + catC + ',' + comC + ',$' + outC + ':$' + outC + '),'
+        catSum = catSum[:-1] + ')'
+        #DEBUG print(catSum)
+        ws[chr(ord(column)+2) + str(wsMrowInc)] = str(catSum)  
         wsMrowInc = wsMrowInc + 1
       ##income total
       ws[chr(ord(column)+1) + str(wsMrowInc)] = i['name'] + ' Total'
@@ -136,114 +187,239 @@ def create_month(ws):
       ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + chr(ord(column)+2) + str(wsMHrowInc + 1) + ':' + chr(ord(column)+2) + str(wsMrowInc - 1) +')'
       ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
       IncTotal[i['name']] = chr(ord(column)+2) + str(wsMrowInc)
-      print(IncTotal[i['name']])
+      #print(IncTotal[i['name']])
       wsMrowInc = wsMrowInc + 1
       
     ##Total Income
     ws[column + str(wsMrowInc)] = 'Total Income'
     ws[column + str(wsMrowInc)].font = Font(bold=True)
-    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + earnedIncTotal + '+' + passiveIncTotal + '+' + portfolioIncTotal +')'
+    concatStr = '=SUM('
+    #print(IncTotal)
+    for k in IncTotal:
+        concatStr = concatStr + IncTotal[k] + '+'
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = concatStr[:-1] + ')'
     ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
-    IncTotal = chr(ord(column)+2) + str(wsMrowInc)
+    IncTotal['Total'] = chr(ord(column)+2) + str(wsMrowInc)
+    #print(IncTotal)
     wsMrowInc = wsMrowInc + 2
 
     #Expenses column
     # header
-    ws['A' + str(wsMrowInc)] = 'Expenses'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
+    ws[column + str(wsMrowInc)] = 'Expenses'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
     wsMrowInc = wsMrowInc + 1
-    #Household Expenses section
-    ws['A' + str(wsMrowInc)] = 'Household Expenses'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
-    wsMHrowInc = wsMrowInc
-    wsMrowInc = wsMrowInc + 1
-    ##Household Expenses catagories
-    for he in houseExpenses:
-      ws['B' + str(wsMrowInc)] = he
+
+    #expenses section
+    for e in expensesCats:
+      ws[column + str(wsMrowInc)] = e['name'] + ' Expenses'
+      ws[column + str(wsMrowInc)].font = Font(bold=True)
+      wsMHrowInc = wsMrowInc
       wsMrowInc = wsMrowInc + 1
-    ##Household Expenses total
-    ws['B' + str(wsMrowInc)] = 'Household Total'
-    ws['B' + str(wsMrowInc)].font = Font(bold=True)
-    ws['C' + str(wsMrowInc)] = '=SUM(C' + str(wsMHrowInc + 1) + ':C' + str(wsMrowInc - 1) +')'
-    ws['C' + str(wsMrowInc)].font = Font(bold=True)
-    householdExpTotal = 'C' + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
-    #DJ Expenses section
-    ws['A' + str(wsMrowInc)] = 'DJ Expenses'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
-    wsMHrowInc = wsMrowInc
-    wsMrowInc = wsMrowInc + 1
-    ##DJ Expenses catagories
-    for de in djExpenses:
-      ws['B' + str(wsMrowInc)] = he
-      wsMrowInc = wsMrowInc + 1
-    ##DJ Expenses total
-    ws['B' + str(wsMrowInc)] = 'DJ Total'
-    ws['B' + str(wsMrowInc)].font = Font(bold=True)
-    ws['C' + str(wsMrowInc)] = '=SUM(C' + str(wsMHrowInc + 1) + ':C' + str(wsMrowInc - 1) +')'
-    ws['C' + str(wsMrowInc)].font = Font(bold=True)
-    djExpTotal = 'C' + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
-    #Personal Expenses section
-    ws['A' + str(wsMrowInc)] = 'Personal Expenses'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
-    wsMHrowInc = wsMrowInc
-    wsMrowInc = wsMrowInc + 1
-    ##Personal Expenses catagories
-    for pe in personalExpenses:
-      ws['B' + str(wsMrowInc)] = pe
-      wsMrowInc = wsMrowInc + 1
-    ##Personal Expenses total
-    ws['B' + str(wsMrowInc)] = 'Personal Total'
-    ws['B' + str(wsMrowInc)].font = Font(bold=True)
-    ws['C' + str(wsMrowInc)] = '=SUM(C' + str(wsMHrowInc + 1) + ':C' + str(wsMrowInc - 1) +')'
-    ws['C' + str(wsMrowInc)].font = Font(bold=True)
-    personalExpTotal = 'C' + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
+      ##expenses catagories
+      for f in subcat[e['name']]:
+        ws[chr(ord(column)+1) + str(wsMrowInc)] = f['name']
+        if f['name'] == 'Tax(Income)':
+            ExpTotal['TaxIncome'] = chr(ord(column)+2) + str(wsMrowInc)
+        catSum = '=SUM('
+        #DEBUG print(AccColumns)
+        for k, v in AccColumns.items():
+            #DEBUG print(v)
+            catC = v['Category']
+            incC = v['Income']
+            outC = v['Outgoings']
+            comC = chr(ord(column)+1) + str(wsMrowInc)
+            catSum = catSum + 'SUMIF($' + catC + ':$' + catC + ',' + comC + ',$' + incC + ':$' + incC + '),'
+            catSum = catSum + 'SUMIF($' + catC + ':$' + catC + ',' + comC + ',$' + outC + ':$' + outC + '),'
+        catSum = catSum[:-1] + ')'
+        #DEBUG print(catSum)
+        ws[chr(ord(column)+2) + str(wsMrowInc)] = str(catSum)
+        wsMrowInc = wsMrowInc + 1
+      ##expenses total
+      ws[chr(ord(column)+1) + str(wsMrowInc)] = e['name'] + ' Total'
+      ws[chr(ord(column)+1) + str(wsMrowInc)].font = Font(bold=True)
+      ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + chr(ord(column)+2) + str(wsMHrowInc + 1) + ':' + chr(ord(column)+2) + str(wsMrowInc - 1) +')'
+      ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+      ExpTotal[e['name']] = chr(ord(column)+2) + str(wsMrowInc)
+      #print(IncTotal[e['name']])
+      wsMrowInc = wsMrowInc + 1 
+
     ##Total Expenses
-    ws['A' + str(wsMrowInc)] = 'Total Expenses'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
-    ws['C' + str(wsMrowInc)] = '=SUM(' + householdExpTotal + '+' + djExpTotal + '+' + personalExpTotal +')'
-    ws['C' + str(wsMrowInc)].font = Font(bold=True)
-    ExpTotal = 'C' + str(wsMrowInc)
+    ws[column + str(wsMrowInc)] = 'Total Expenses'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    concatStr = '=SUM('
+    for g in ExpTotal:
+        concatStr = concatStr + ExpTotal[g] + '+'
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = concatStr[:-1] + ')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    ExpTotal['Total'] = chr(ord(column)+2) + str(wsMrowInc)
     wsMrowInc = wsMrowInc + 2
 
     #Net monthly Cash flow
-    ws['A' + str(wsMrowInc)] = 'Net Monthly Cash Flow'
-    ws['A' + str(wsMrowInc)].font = Font(bold=True)
-    ws['C' + str(wsMrowInc)] = '=SUM(' + IncTotal + '-' + ExpTotal + ')'
-    ws['C' + str(wsMrowInc)].font = Font(bold=True)
-    NetTotal = 'C' + str(wsMrowInc)
+    ws[column + str(wsMrowInc)] = 'Net Monthly Cash Flow'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + IncTotal['Total'] + '-' + ExpTotal['Total'] + ')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    NetTotal = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 2
+
+    #Assets Totals
+    # header
+    AssetTotal = {}
+    ws[column + str(wsMrowInc)] = 'Assets'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
+    wsMHrowInc = wsMrowInc
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - bank
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Bank Accounts'
+    AssetTotal['Bank Accounts'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Crypto Investments
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Crypto Investments'
+    AssetTotal['Crypto Investments'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Stocks/Shares
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Stocks/Shares'
+    AssetTotal['Stocks/Shares'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Bonds
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Bonds'
+    AssetTotal['Bonds'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Buy to let Property
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Buy to let Property'
+    AssetTotal['Buy to let Property'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    ws[chr(ord(column)+1) + str(wsMrowAna)] = '(fair market value less mortgage)'
+    ws[chr(ord(column)+1) + str(wsMrowAna)].font = Font(size=8)
+    #assets total
+    ws[column + str(wsMrowInc)] = 'Assets Total'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+1) + str(wsMrowAna))
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + chr(ord(column)+2) + str(wsMHrowInc + 1) + ':' + chr(ord(column)+2) + str(wsMrowInc - 1) +')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    AssetTotal['Total'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 2
+
+    #dep Assets Totals
+    # header
+    DepAssetTotal = {}
+    ws[column + str(wsMrowInc)] = 'Depreciting Assets'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
+    wsMHrowInc = wsMrowInc
+    wsMrowInc = wsMrowInc + 1
+    # dep asset totals - Home
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Home'
+    DepAssetTotal['Home'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Car(s)
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Car(s)'
+    DepAssetTotal['Car(s)'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Other 1
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Other 1'
+    DepAssetTotal['Other 1'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    # asset totals - Other 2
+    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Other 2'
+    DepAssetTotal['Other 2'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 1
+    #assets total
+    ws[column + str(wsMrowInc)] = 'Depreciting Assets Total'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+1) + str(wsMrowAna))
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + chr(ord(column)+2) + str(wsMHrowInc + 1) + ':' + chr(ord(column)+2) + str(wsMrowInc - 1) +')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    DepAssetTotal['Total'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 2
+
+    #assets total per banker
+    ws[column + str(wsMrowInc)] = 'Total Assets Per Banker'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+1) + str(wsMrowAna))
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + AssetTotal['Total'] + '+' + DepAssetTotal['Total'] +')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    AssetTotal['TotalPerBanker'] = chr(ord(column)+2) + str(wsMrowInc)
+    wsMrowInc = wsMrowInc + 2
+
+    #assets total per Rich Dad
+    ws[column + str(wsMrowInc)] = 'Total Assets Per Rich Dad'
+    ws[column + str(wsMrowInc)].font = Font(bold=True)
+    ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+1) + str(wsMrowAna))
+    ws[chr(ord(column)+2) + str(wsMrowInc)] = '=SUM(' + AssetTotal['Total'] + ')'
+    ws[chr(ord(column)+2) + str(wsMrowInc)].font = Font(bold=True)
+    AssetTotal['TotalPerRichDad'] = chr(ord(column)+2) + str(wsMrowInc)
     wsMrowInc = wsMrowInc + 2
     
     #analysis column
-    ws['E' + str(wsMrowAna)] = 'Analysis'
-    ws['E' + str(wsMrowAna)].font = Font(bold=True)
-    ws.merge_cells('E' + str(wsMrowAna) + ':' + 'G' + str(wsMrowAna))
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'Analysis'
+    ws[chr(ord(column)+4) + str(wsMrowAna)].font = Font(bold=True)
+    ws.merge_cells(chr(ord(column)+4) + str(wsMrowAna) + ':' + chr(ord(column)+6) + str(wsMrowAna))
     wsMrowAna = wsMrowAna + 1
     #Cash Flow
-    ws['E' + str(wsMrowAna)] = 'How much do you keep?'
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'How much do you keep?'
     wsMrowAna = wsMrowAna + 1
-    ws['E' + str(wsMrowAna)] = 'Cash Flow/Total Income'
-    ws['F' + str(wsMrowAna)] = '=SUM(' + NetTotal + '/' + IncTotal + ')'
-    ws['F' + str(wsMrowAna)].style = 'Percent'
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Cash Flow/Total Income'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=SUM(' + NetTotal + '/' + IncTotal['Total'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
     wsMrowAna = wsMrowAna + 1
-    ws['E' + str(wsMrowAna)] = '***should be increasing'
-    ws['E' + str(wsMrowAna)].font = Font(size=8)
-    return(ws)
-
-wsJan = create_month(wsJan)
-wsFeb = create_month(wsFeb)
-wsMar = create_month(wsMar)
-wsMay = create_month(wsMay)
-wsApr = create_month(wsApr)
-wsJun = create_month(wsJun)
-wsJul = create_month(wsJul)
-wsAug = create_month(wsAug)
-wsSep = create_month(wsSep)
-wsOct = create_month(wsOct)
-wsNov = create_month(wsNov)
-wsDec = create_month(wsDec)
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***should be increasing'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 4
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'Does Your Money Work For You?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Passive+Portfolio/Total Inc'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=SUM((' + IncTotal['Portfolio'] + '+' + IncTotal['Pasive'] + ')/' + IncTotal['Total'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***should be increasing'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 2
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'How Much Do You Pay In Taxes?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Income Taxes/Total Income'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=SUM(' + ExpTotal['TaxIncome'] + '/' + IncTotal['Total'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 2
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'How Much Goes to Housing?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Housing Expenses/Income'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=SUM(' + ExpTotal['Household'] + '/' + IncTotal['Total'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***keep under 33 percent'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 2
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'How Much Do You Spend on Depriciating Assets?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Depreciating Assets Total/Banker Assets'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=(' + DepAssetTotal['Total'] + '/' + AssetTotal['TotalPerBanker'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***keep under 33 percent'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 2
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'What Is Your Annual Return On Assets?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Pass+Port/Rich Dad Assets'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=((' + IncTotal['Pasive'] + '+' + IncTotal['Portfolio'] + ')*12/' + AssetTotal['TotalPerRichDad'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***should be increasing'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 2
+    ws[chr(ord(column)+4) + str(wsMrowAna)] = 'How Wealthy Are You?'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Rich Dad Assets/Expenses'
+    ws[chr(ord(column)+6) + str(wsMrowAna)] = '=(' + AssetTotal['TotalPerRichDad'] + '/' + ExpTotal['Total'] + ')'
+    ws[chr(ord(column)+6) + str(wsMrowAna)].style = 'Percent'
+    wsMrowAna = wsMrowAna + 1
+    ws[chr(ord(column)+5) + str(wsMrowAna)] = '***measured in months'
+    ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
+    wsMrowAna = wsMrowAna + 2
+    return(ExpTotal, IncTotal)
 
 # Create the Overview table heading row
 wsO['A' + str(wsOrow)] = 'Month'
@@ -260,18 +436,21 @@ wsOHrow = wsOrow
 wsOrow = wsOrow + 1
 
 #Create the rows in the overview table
+OTotals = {}
 for m in months:
+    OTotals[m]=create_month(m)
     wsO['A' + str(wsOrow)] = m
-    wsO['B' + str(wsOrow)] = '=' + m +'!C68'
+    wsO['B' + str(wsOrow)] = '=' + m + '!' + OTotals[m][0]['Total']
     wsO['C' + str(wsOrow)] = '=Budget!' + str(BExpTotal)
-    wsO['D' + str(wsOrow)] = '=SUM(B' + str(wsOrow) + '-C' + str(wsOrow) + ')'
-    wsO['E' + str(wsOrow)] = '=' + m +'!C22'
+    wsO['D' + str(wsOrow)] = '=SUM(B'+ str(wsOrow) + '-C' + str(wsOrow) + ')'
+    wsO['E' + str(wsOrow)] = '=' + m +'!' + OTotals[m][1]['Total']
     wsO['F' + str(wsOrow)] = '=Budget!' + str(BIncTotal)
     wsO['G' + str(wsOrow)] = '=SUM(E' + str(wsOrow) + '-F' + str(wsOrow) + ')'
     wsO['H' + str(wsOrow)] = '=SUM(E' + str(wsOrow) + '-B' + str(wsOrow) + ')'
     wsO['I' + str(wsOrow)] = '=SUM(F' + str(wsOrow) + '-C' + str(wsOrow) + ')'
     wsO['J' + str(wsOrow)] = '=SUM(H' + str(wsOrow) + '-I' + str(wsOrow) + ')'
     wsOrow = wsOrow + 1
+#DEBUG print(OTotals)
 
 #create the totals row in the overview table
 wsO['A' + str(wsOrow)] = 'Totals'
