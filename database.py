@@ -157,14 +157,14 @@ def getBal(accountnumber, date):
     cnx.close()
   return (result)
 
-def getAssetVal(asset):
-  # a function to get the value of an asset out of the database
+def getAssets(date):
+  # a function to get the list of assets we care about for a given month.
   cnx = pymysql.connect(**dbConfig)
   try:
       with cnx.cursor() as cursor:
-          select_sql = "SELECT value from assets where name=%s"
+          select_sql = "SELECT name, value FROM assets ast1 WHERE ast1.insertDate = (SELECT max(ast2.insertDate) FROM assets ast2	WHERE ast2.name = ast1.name AND id IN ( SELECT id FROM assets WHERE insertDate < %s)) AND ast1.soldDate IS NULL"
           # get the data
-          cursor.executemany(select_sql, [(asset)])
+          cursor.executemany(select_sql, [(date)])
           result = cursor.fetchall()
   finally:
     cnx.close()
