@@ -149,9 +149,22 @@ def getBal(accountnumber, date):
   cnx = pymysql.connect(**dbConfig)
   try:
       with cnx.cursor() as cursor:
-          select_sql = "SELECT date, ballance from transaction where accountnumber=%s AND date < %s LIMIT 1"
+          select_sql = "SELECT id, date, balance from transaction where accountnumber=%s AND date <= %s ORDER BY id, DATEDIFF( date, %s ) DESC LIMIT 1"
           # get the data
-          cursor.executemany(select_sql, [(accountnumber, date)])
+          cursor.executemany(select_sql, [(accountnumber, date, date)])
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
+def getLiabilities():
+  # a function to get opening and closing balance based on account number and month
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT id, accountname from accounts where accountType = 'LOAN'"
+          # get the data
+          cursor.execute(select_sql,)
           result = cursor.fetchall()
   finally:
     cnx.close()

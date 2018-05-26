@@ -97,21 +97,28 @@ def create_month(ws):
     IncTotal ={}
     ExpTotal ={}
     AccColumns = {}
-    Balanace = {}
-    now = datetime.datetime.now() 
+    Balance = {}
+    #set up some date strings...
+    #todays date when the script is run
+    now = datetime.datetime.now()
+    #change month from mmm to mm format
+    month = months[mmm]
+    
+    #add this year when the script is run to the month and build a start and end date for use later
+    startDate = str(now.year) + '-' + str(month) + '-01'
+    endDate = str(now.year) + '-' + str(month) + '-31'
 
     #### PRODUCE DATA TABLES FROM BANK DATA ####
     #DEBUG print(accounts)
     for a in accounts:
         #get transaction data
-        #DEBUG (mmm)
-        month = months[mmm]
-        startDate = str(now.year) + '-' + str(month) + '-01'
-        endDate = str(now.year) + '-' + str(month) + '-31'
+        Balance[a['accountname']] = {}
         #set opening and closing balances
-        Balanace[m][a['accountname']]['open'] = database.getBal(a['accountnumber'], startDate)
-        #DEBUG print(startDate)
-        #DEBUG print(endDate)
+        Balance[a['accountname']]['open'] = database.getBal(a['accountnumber'], startDate)
+        Balance[a['accountname']]['close'] = database.getBal(a['accountnumber'], endDate)
+        print(a['accountname'], a['accountnumber'],startDate, endDate)
+        print(Balance[a['accountname']]['open'])
+        print(Balance[a['accountname']]['close'])
         transactions=database.getTransactionDataByAccount(a['accountnumber'], startDate, endDate)
         #write title of account
         ws[columnData + str(wsMrowData)] = a['accountname']
@@ -263,6 +270,9 @@ def create_month(ws):
     NetTotal = chr(ord(column)+2) + str(wsMrowInc)
     wsMrowInc = wsMrowInc + 2
 
+    #set liabilities start row for use later
+    wsMrowLib = wsMrowInc
+
     #Assets Totals
     # header
     AssetTotal = {}
@@ -302,6 +312,7 @@ def create_month(ws):
     AssetTotal['Total'] = chr(ord(column)+2) + str(wsMrowInc)
     wsMrowInc = wsMrowInc + 2
 
+
     #dep Assets Totals
     # header
     DepAssetTotal = {}
@@ -310,22 +321,13 @@ def create_month(ws):
     ws.merge_cells(column + str(wsMrowAna) + ':' + chr(ord(column)+2) + str(wsMrowAna))
     wsMHrowInc = wsMrowInc
     wsMrowInc = wsMrowInc + 1
-    # dep asset totals - Home
-    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Home'
-    DepAssetTotal['Home'] = chr(ord(column)+2) + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
-    # asset totals - Car(s)
-    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Car(s)'
-    DepAssetTotal['Car(s)'] = chr(ord(column)+2) + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
-    # asset totals - Other 1
-    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Other 1'
-    DepAssetTotal['Other 1'] = chr(ord(column)+2) + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
-    # asset totals - Other 2
-    ws[chr(ord(column)+1) + str(wsMrowInc)] = 'Other 2'
-    DepAssetTotal['Other 2'] = chr(ord(column)+2) + str(wsMrowInc)
-    wsMrowInc = wsMrowInc + 1
+    # get a list and value of depriciating assets from database for this month
+    DepAssets = database.getAssets(endDate)
+    for d in DepAssets:
+        ws[chr(ord(column)+1) + str(wsMrowInc)] = d['name']
+        DepAssetTotal[d['name']] = chr(ord(column)+2) + str(wsMrowInc)
+        ws[DepAssetTotal[d['name']]] = d['value']
+        wsMrowInc = wsMrowInc + 1
     #assets total
     ws[column + str(wsMrowInc)] = 'Depreciting Assets Total'
     ws[column + str(wsMrowInc)].font = Font(bold=True)
@@ -419,6 +421,33 @@ def create_month(ws):
     ws[chr(ord(column)+5) + str(wsMrowAna)] = '***measured in months'
     ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
     wsMrowAna = wsMrowAna + 2
+
+    # Labilities section
+    # header
+    LibilitiesTotal = {}
+    libColumn = chr(ord(column)+4)
+    ws[libColumn + str(wsMrowLib)] = 'Liabilities'
+    ws[libColumn + str(wsMrowLib)].font = Font(bold=True)
+    ws.merge_cells(libColumn + str(wsMrowLib) + ':' + chr(ord(libColumn)+2) + str(wsMrowLib))
+    wsMHrowLib = wsMrowLib
+    wsMrowLib = wsMrowLib + 1
+    # get a list and value of Liabilities from database
+    Liabilities = database.getLiabilities()
+    for l in Liabilities:
+        ws[chr(ord(libColumn)+1) + str(wsMrowLib)] = l['accountname']
+        LibilitiesTotal[l['accountname']] = chr(ord(libColumn)+2) + str(wsMrowLib)
+        ws[LibilitiesTotal[l['accountname']]] = Balance[l['accountname']]['close'][0]['balance']
+        wsMrowLib = wsMrowLib + 1
+    #liabilities total
+    ws[libColumn + str(wsMrowLib)] = 'Liabilities Total'
+    ws[libColumn + str(wsMrowLib)].font = Font(bold=True)
+    ws.merge_cells(libColumn + str(wsMrowLib) + ':' + chr(ord(libColumn)+1) + str(wsMrowLib))
+    ws[chr(ord(libColumn)+2) + str(wsMrowLib)] = '=SUM(' + chr(ord(libColumn)+2) + str(wsMHrowLib + 1) + ':' + chr(ord(libColumn)+2) + str(wsMrowLib - 1) +')'
+    ws[chr(ord(libColumn)+2) + str(wsMrowLib)].font = Font(bold=True)
+    LibilitiesTotal['Total'] = chr(ord(libColumn)+2) + str(wsMrowLib)
+    wsMrowLib = wsMrowLib + 2
+
+    #end of function
     return(ExpTotal, IncTotal)
 
 # Create the Overview table heading row
