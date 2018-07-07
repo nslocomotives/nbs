@@ -59,6 +59,29 @@ wsOrow = 2
 wsBrow = 2
 wsMrow = 2
 
+#function to wrap a get account names and batch up the results
+def getAccountsList(AccTypes):
+    MergedList = []
+    #DEBUG print('Content of MergedList', MergedList)
+    for a in AccTypes:
+        List = database.getAccountNames(a)
+        #DEBUG print('Fetched from database:', List)
+        MergedList.extend(List)
+        #DEBUG print('Content of MergedList', MergedList)
+    return(MergedList)
+
+#function to wrap a get balances of accounts and clean up results 
+def getBalance(accountnumber, Date):
+    result = database.getBal(accountnumber, Date)
+    #DEBUG print('Content of result', type(result), result)
+    if type(result) == list:
+        result = result[0]
+    else:
+        result = {'balance':0}
+    #DEBUG print('Content of result', type(result), result)
+    return(result)
+        
+
 #create the budget header
 wsB['A' + str(wsBrow)] = 'Monthly Expenses'
 wsB['E' + str(wsBrow)] = 'monthly Income'
@@ -114,11 +137,10 @@ def create_month(ws):
         #get transaction data
         Balance[a['accountname']] = {}
         #set opening and closing balances
-        Balance[a['accountname']]['open'] = database.getBal(a['accountnumber'], startDate)
-        Balance[a['accountname']]['close'] = database.getBal(a['accountnumber'], endDate)
+        Balance[a['accountname']]['open'] = getBalance(a['accountnumber'], startDate)
+        Balance[a['accountname']]['close'] = getBalance(a['accountnumber'], endDate)
         print(a['accountname'], a['accountnumber'],startDate, endDate)
-        print(Balance[a['accountname']]['open'])
-        print(Balance[a['accountname']]['close'])
+        print(Balance[a['accountname']])
         transactions=database.getTransactionDataByAccount(a['accountnumber'], startDate, endDate)
         #write title of account
         ws[columnData + str(wsMrowData)] = a['accountname']
@@ -422,6 +444,22 @@ def create_month(ws):
     ws[chr(ord(column)+5) + str(wsMrowAna)].font = Font(size=8)
     wsMrowAna = wsMrowAna + 2
 
+    # accounts section
+    # get a list and value of Current and Savings Accounts from database
+    AccTypes = ['CURRENT','SAVINGS']
+    AccountsList = getAccountsList(AccTypes)
+    print('Getting accounts lists:', AccTypes, AccountsList)
+    for a in AccountsList:
+        ws[chr(ord(column)+4) + str(wsMrowAna)] = a['accountname']
+        wsMrowAna = wsMrowAna + 1
+        ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Opening Balance'
+        ws[chr(ord(column)+6) + str(wsMrowAna)] = Balance[a['accountname']]['open']['balance']
+        wsMrowAna = wsMrowAna + 1
+        ws[chr(ord(column)+5) + str(wsMrowAna)] = 'Closing Balance'
+        ws[chr(ord(column)+6) + str(wsMrowAna)] = Balance[a['accountname']]['close']['balance']
+        wsMrowAna = wsMrowAna + 1
+    
+
     # Labilities section
     # header
     LibilitiesTotal = {}
@@ -432,11 +470,12 @@ def create_month(ws):
     wsMHrowLib = wsMrowLib
     wsMrowLib = wsMrowLib + 1
     # get a list and value of Liabilities from database
-    Liabilities = database.getLiabilities()
+    AccTypes = ['LOAN']
+    Liabilities = database.getAccountNames(AccTypes)
     for l in Liabilities:
         ws[chr(ord(libColumn)+1) + str(wsMrowLib)] = l['accountname']
         LibilitiesTotal[l['accountname']] = chr(ord(libColumn)+2) + str(wsMrowLib)
-        ws[LibilitiesTotal[l['accountname']]] = Balance[l['accountname']]['close'][0]['balance']
+        ws[LibilitiesTotal[l['accountname']]] = Balance[l['accountname']]['close']['balance']
         wsMrowLib = wsMrowLib + 1
     #liabilities total
     ws[libColumn + str(wsMrowLib)] = 'Liabilities Total'
