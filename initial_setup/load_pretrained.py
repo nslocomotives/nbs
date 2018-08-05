@@ -17,7 +17,7 @@ GLOVE_DIR = dirs['dataDir']
 model_name = dirs['dataDir'] + 'glove_embeddings'
 
 embeddings_index = {}
-f = open(os.path.join(GLOVE_DIR, 'glove.42B.300d.txt'))
+f = open(os.path.join(GLOVE_DIR, 'glove.42B.300d.txt'), encoding="utf8")
 for line in f:
     values = line.split()
     word = values[0]
@@ -26,7 +26,8 @@ for line in f:
 f.close()
 
 print('Found %s word vectors.' % len(embeddings_index))
-
+print('Now writting the file to disk...')
 modelFileSave = open(model_name, 'wb')
 pickle.dump(embeddings_index, modelFileSave)
 modelFileSave.close()
+print('All Done :-)')
