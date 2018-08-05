@@ -46,7 +46,7 @@ def insertTrades(data, symbol, exchange):
                 cnx.commit()
   finally:
     cnx.close()
-	
+
 def getLastTradeId(exchange, symbol):
   # a function to get the most recent exchangeId for the trade symbol and exchange
   cnx = pymysql.connect(**dbConfig)
@@ -60,12 +60,12 @@ def getLastTradeId(exchange, symbol):
           #print(lastTradeId)
           if lastTradeId:
 	          result = lastTradeId
-          else: 
+          else:
               result = 'no trades'
   finally:
     cnx.close()
   return (result)
-  
+
 def getCategory(isIncome):
   # a function to get the catagories
   cnx = pymysql.connect(**dbConfig)
@@ -104,6 +104,20 @@ def getSubCategoryById(lnk):
   finally:
     cnx.close()
   return (result)
+
+def getAllSubCategories():
+  # a function to get all of the sub catagories.
+  cnx = pymysql.connect(**dbConfig)
+  try:
+      with cnx.cursor() as cursor:
+          select_sql = "SELECT id, name from subCategory"
+          # get the data
+          cursor.execute(select_sql)
+          result = cursor.fetchall()
+  finally:
+    cnx.close()
+  return (result)
+
 
 def getAccounts():
   # a function to get the accounts in the database
@@ -184,4 +198,3 @@ def getAssets(date):
   finally:
     cnx.close()
   return (result)
-
