@@ -1,5 +1,7 @@
-#mbs specfic git ignore list
+#nbs specfic git ignore list
 config.yml
+~$Financal\ Statement.xlsx
+Financal\ Statement.xlsx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
