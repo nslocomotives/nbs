@@ -17,9 +17,10 @@ import pandas as pd
 from sklearn import metrics
 import catagorise_transactions as ts
 import get_config
+import database as db
 
 dirs = get_config.cfg['dirs']
-print(dirs)
+
 modelname = dirs['runDir'] + 'model_data/production_logreg'
 filein = dirs['dataDir'] + 'train.csv'
 fileout = dirs['dataDir'] + 'online_cat.csv'
@@ -34,7 +35,10 @@ except:
     embeddings = pickle.load(embeddingFileLoad)
 
 def chop_up_input(start_up_size, chunk_size):
-    df = pd.read_csv(filein)
+    #df = pd.read_csv(filein)
+    # NOTE: pull relevant data and run parsing and classification
+    data = db.getTransactionData()
+    df = pd.DataFrame(data)
 
     if not os.path.exists(online_dir):
         os.makedirs(online_dir)
@@ -44,7 +48,7 @@ def chop_up_input(start_up_size, chunk_size):
     # initialize logistic regression with larger chunk
     filename = online_dir + 'online0.csv'
     df_chunk = df[0:start_up_size]
-    df_chunk.columns = ['raw','amount']
+    df_chunk.columns = ['description','amount']
     df_chunk.to_csv(filename,index=False)
 
     # run online updates with smaller chunks
@@ -53,7 +57,7 @@ def chop_up_input(start_up_size, chunk_size):
         start = (file_num-1)*chunk_size + start_up_size
         stop = start + chunk_size
         df_chunk = df[start:stop]
-        df_chunk.columns = ['raw','amount']
+        df_chunk.columns = ['description','amount']
         df_chunk.to_csv(filename,index=False)
 
     return num_files
